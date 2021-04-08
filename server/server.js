@@ -1,7 +1,4 @@
-const express = require('express');
-const cors = require('cors');
 const { ApolloServer, gql, PubSub } = require('apollo-server');
-const { graphqlHTTP } = require('express-graphql');
 
 // Helper function for dice rolling.
 function rollDice(diceCount, diceFaces) {
@@ -48,12 +45,13 @@ const typeDefs = gql`
     }
 
     type Mutation {
-        createUser(name: String): User!
+        createUser(name: String!): User!
         createMessage(userId: ID!, text: String!): Message!
         createRoll(userId: ID!, diceCount: Int!, diceFaces: Int!): Roll!
     }
 
     type Subscription {
+        userCreated: User!
         messageCreated: Message!
     }
 `;
@@ -79,6 +77,10 @@ const resolvers = {
                 name: name ? name : `User ${id}`,
             }
             users.push(newUser);
+
+            pubsub.publish('USER_CREATED', {
+                userCreated: newUser,
+            });
 
             return newUser;
         },
@@ -112,6 +114,9 @@ const resolvers = {
         },
     },
     Subscription: {
+        userCreated: {
+            subscribe: () => pubsub.asyncIterator(['USER_CREATED'])
+        },
         messageCreated: {
             subscribe: () => pubsub.asyncIterator(['MESSAGE_CREATED'])
         }
@@ -129,14 +134,3 @@ const server = new ApolloServer({
 server.listen().then(({ url }) => {
     console.log(`🚀 Server ready at ${url}`);
 });
-
-// var app = express();
-// app.use(cors());
-// app.use(express.json());
-// app.use('/graphql', graphqlHTTP({
-//     schema: schema,
-//     rootValue: root,
-//     graphiql: true, // Enables the graphical UI for quick testing.
-// }));
-// app.listen(4000);
-// console.log('Running a GraphQL API server at http://localhost:4000/graphql');

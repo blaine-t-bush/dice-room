@@ -8,7 +8,6 @@ import {
   gql,
   useQuery,
   useMutation,
-  useSubscription,
 } from '@apollo/client';
 import { onError } from '@apollo/client/link/error';
 import { getMainDefinition } from '@apollo/client/utilities';
@@ -70,6 +69,24 @@ const GET_USERS = gql`
 }
 `;
 
+const CREATE_USER = gql`
+mutation createUser($name: String!) {
+  createUser(name: $name) {
+    id
+    name
+  }
+}
+`;
+
+const USER_CREATED = gql`
+  subscription userCreated {
+    userCreated {
+      id
+      name
+    }
+  }
+`;
+
 const GET_MESSAGES = gql`
   query getMessages {
     messages {
@@ -109,39 +126,50 @@ const MESSAGE_CREATED = gql`
   }
 `;
 
-const GET_ROLLS = gql`
-  query getRolls {
-    rolls {
-      id
-      user {
-        id
-        name
-      }
-      diceCount
-      diceFaces
-      result
-    }
+class Users extends React.Component {
+  componentDidMount() {
+    this.props.subscribeToNewUsers();
   }
-`;
 
-function Users() {
-  const { loading, error, data } = useQuery(GET_USERS);
+  render() {
+    return (
+      <ul>
+        {this.props.users.map(({id, name}) => { return (
+          <li key={id}>
+            {name}
+          </li>
+        )})}
+      </ul>
+    );
+  }
+}
+
+function UserLoader() {
+  const { loading, error, data, subscribeToMore } = useQuery(GET_USERS);
 
   if (loading) return 'Loading...';
   if (error) return `Error! ${error.message}`;
 
   return (
-    <ul>
-      {data.users.map(({id, name}) => { return (
-        <li key={id}>
-          {name}
-        </li>
-      )})}
-    </ul>
+    <Users
+      users={data.users}
+      subscribeToNewUsers={() =>
+        subscribeToMore({
+          document: USER_CREATED,
+          updateQuery: (prev, { subscriptionData }) => {
+            if (!subscriptionData.data) return prev;
+            const newUser = subscriptionData.data.userCreated;
+            return Object.assign({}, prev, {
+              users: [...prev.users, newUser]
+            })
+          }
+        })
+      }
+    />
   );
 }
 
-class MessagesPage extends React.Component {
+class Messages extends React.Component {
   componentDidMount() {
     this.props.subscribeToNewMessages();
   }
@@ -160,14 +188,14 @@ class MessagesPage extends React.Component {
   }
 }
 
-function Messages() {
+function MessageLoader() {
   const { loading, error, data, subscribeToMore } = useQuery(GET_MESSAGES);
 
   if (loading) return 'Loading...';
   if (error) return `Error! ${error.message}`;
 
   return (
-    <MessagesPage
+    <Messages
       messages={data.messages}
       subscribeToNewMessages={() =>
         subscribeToMore({
@@ -186,8 +214,11 @@ function Messages() {
 }
 
 function Room() {
+  const [createUser] = useMutation(CREATE_USER);
   const [createMessage] = useMutation(CREATE_MESSAGE);
   const [state, stateSet] = React.useState({
+    hasJoined: false,
+    nameInput: "",
     user: {
       id: 0,
       name: "Guest",
@@ -196,7 +227,7 @@ function Room() {
   });
 
   // Function for handling sending of new messages.
-  const onSend = () => {
+  const onSendMessage = () => {
     if (state.text.length > 0) {
       try {
         createMessage({
@@ -213,49 +244,87 @@ function Room() {
     });
   }
 
+  // Function for handling creating user model.
+  const onJoin = () => {
+    // Only enable join function for those who haven't joined yet.
+    if (!state.hasJoined) {
+      if (state.nameInput.length > 0) {
+        try {
+          createUser({
+            variables: { name: state.nameInput },
+          }).then(result => {
+            // Update state with assigned user ID and name.
+            stateSet({
+              ...state,
+              user: {
+                id: result.data.createUser.id,
+                name: result.data.createUser.name,
+              },
+              hasJoined: true,
+            });
+
+            // Hide the "join" UI element.
+          });
+        } catch (e) {
+          console.log(e);
+        }
+      }
+    }
+  }
+
   return (
     <div>
-      <input
-        type="text"
-        name="username"
-        id="username"
-        value={state.user.name}
-        onChange={(e) => stateSet({
-          ...state,
-          user: {
-            id: state.user.id,
-            name: e.target.value,
-          }
-        })} />
-
-      <h1>Users</h1>
-      <Users />
-
-      <input
-        type="text"
-        name="text"
-        id="text"
-        value={state.text}
-        onChange={(e) => stateSet({
-            ...state,
-            text: e.target.value,
-          })
-        }
-        onKeyDown={(e) => {
-          if (e.keyCode === 13) {
-            onSend();
-          }
-        }} />
-
-      <button
-        onClick={() => onSend()}>
-          Send
-        </button>
-
       <h1>Messages</h1>
-      <ul>
-        <Messages />
-      </ul>
+      <MessageLoader />
+
+      {state.hasJoined ? (
+        <div id="form-message">
+          <input
+            type="text"
+            name="text"
+            id="text"
+            value={state.text}
+            placeholder="Enter a message..."
+            onChange={(e) => stateSet({
+                ...state,
+                text: e.target.value,
+              })
+            }
+            onKeyDown={(e) => {
+              if (e.keyCode === 13) {
+                onSendMessage();
+              }
+            }} />
+
+          <button
+            onClick={() => onSendMessage()}>
+            Send
+          </button>
+        </div>
+      ) : (
+        <div id="form-join">
+          <input
+            type="text"
+            name="username"
+            id="username"
+            value={state.nameInput}
+            placeholder="Choose a name..."
+            onChange={(e) => stateSet({
+              ...state,
+              nameInput: e.target.value,
+            })}
+            onKeyDown={(e) => {
+              if (e.keyCode === 13) {
+                onJoin();
+              }
+            }} />
+
+          <button
+            onClick={() => onJoin()}>
+            Join
+          </button>
+        </div>
+      )}
     </div>
   )
 };
