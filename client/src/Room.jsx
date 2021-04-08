@@ -96,8 +96,8 @@ const CREATE_MESSAGE = gql`
   }
 `;
 
-const WATCH_MESSAGES = gql`
-  subscription watchMessages {
+const MESSAGE_CREATED = gql`
+  subscription messageCreated {
     messageCreated {
       id
       user {
@@ -124,12 +124,11 @@ const GET_ROLLS = gql`
   }
 `;
 
-const Users = () => {
-  const { data } = useQuery(GET_USERS);
+function Users() {
+  const { loading, error, data } = useQuery(GET_USERS);
 
-  if (!data) {
-    return null;
-  }
+  if (loading) return 'Loading...';
+  if (error) return `Error! ${error.message}`;
 
   return (
     <ul>
@@ -140,72 +139,63 @@ const Users = () => {
       )})}
     </ul>
   );
-};
+}
 
-const Messages = () => {
-  const { data } = useQuery(GET_MESSAGES);
-
-  if (!data) {
-    return null;
+class MessagesPage extends React.Component {
+  componentDidMount() {
+    this.props.subscribeToNewMessages();
   }
 
-  return (
-    <>
-      {data.messages.map(({id, user, text}) => { return (
-        <li key={id} className="message">
-          <div className="message-username">{user.name}</div>
-          <div className="message-text">{text}</div>
-        </li>
-      )})}
-    </>
-  );
-};
-
-const NewMessages = () => {
-  const { data } = useSubscription(WATCH_MESSAGES);
-
-  if (!data) {
-    return null;
+  render() {
+    return (
+      <ul>
+        {this.props.messages.map(({id, user, text}) => { return (
+          <li key={id} className="message">
+            <div className="message-username">{user.name}</div>
+            <div className="message-text">{text}</div>
+          </li>
+        )})}
+      </ul>
+    );
   }
+}
+
+function Messages() {
+  const { loading, error, data, subscribeToMore } = useQuery(GET_MESSAGES);
+
+  if (loading) return 'Loading...';
+  if (error) return `Error! ${error.message}`;
 
   return (
-    <li className="message">
-      <div className="message-username">{data.messageCreated.user.name}</div>
-      <div className="message-text">{data.messageCreated.text}</div>
-    </li>
+    <MessagesPage
+      messages={data.messages}
+      subscribeToNewMessages={() =>
+        subscribeToMore({
+          document: MESSAGE_CREATED,
+          updateQuery: (prev, { subscriptionData }) => {
+            if (!subscriptionData.data) return prev;
+            const newMessage = subscriptionData.data.messageCreated;
+            return Object.assign({}, prev, {
+              messages: [...prev.messages, newMessage]
+            })
+          }
+        })
+      }
+    />
   );
 }
 
-const Rolls = () => {
-  const { data } = useQuery(GET_ROLLS);
-
-  if (!data) {
-    return null;
-  }
-
-  return (
-    <ul>
-      {data.rolls.map(({id, user, diceCount, diceFaces, result}) => { return (
-        <li key={id}>
-          <div>{user.name}</div>
-          <div>{diceCount}d{diceFaces} &#8594; <span>{result}</span></div>
-        </li>
-      )})}
-    </ul>
-  );
-};
-
-const Room = () => {
+function Room() {
   const [createMessage] = useMutation(CREATE_MESSAGE);
-  // const [createUser] = useMutation(CREATE_USER);
   const [state, stateSet] = React.useState({
     user: {
       id: 0,
-      name: "Blaine",
+      name: "Guest",
     },
     text: '',
-  }); // FIXME await response from createUser to set state values.
+  });
 
+  // Function for handling sending of new messages.
   const onSend = () => {
     if (state.text.length > 0) {
       try {
@@ -265,11 +255,7 @@ const Room = () => {
       <h1>Messages</h1>
       <ul>
         <Messages />
-        <NewMessages />
       </ul>
-
-      <h1>Rolls</h1>
-      <Rolls />
     </div>
   )
 };

@@ -15,7 +15,7 @@ function rollDice(diceCount, diceFaces) {
 }
 
 // Initialize users and messages.
-const users = [{ id: 0, name: "Blaine" }], messages = [], rolls = [];
+const users = [{ id: 0, name: "Guest" }], messages = [], rolls = [];
 
 // Initialize subscription service.
 const pubsub = new PubSub();
@@ -93,7 +93,7 @@ const resolvers = {
 
             pubsub.publish('MESSAGE_CREATED', {
                 messageCreated: newMessage,
-              });
+            });
 
             return newMessage;
         },
