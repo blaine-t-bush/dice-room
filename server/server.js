@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const { ApolloServer, gql, PubSub } = require('apollo-server');
 const { graphqlHTTP } = require('express-graphql');
-const { buildSchema } = require('graphql');
 
 // Helper function for dice rolling.
 function rollDice(diceCount, diceFaces) {
@@ -15,10 +15,13 @@ function rollDice(diceCount, diceFaces) {
 }
 
 // Initialize users and messages.
-const users = [], messages = [], rolls = [];
+const users = [{ id: 0, name: "Blaine" }], messages = [], rolls = [];
+
+// Initialize subscription service.
+const pubsub = new PubSub();
 
 // Construct the schema to define types.
-const schema = buildSchema(`
+const typeDefs = gql`
     type User {
         id: ID!
         name: String!
@@ -49,63 +52,91 @@ const schema = buildSchema(`
         createMessage(userId: ID!, text: String!): Message!
         createRoll(userId: ID!, diceCount: Int!, diceFaces: Int!): Roll!
     }
-`);
+
+    type Subscription {
+        messageCreated: Message!
+    }
+`;
 
 // Construct the root to provide resolvers for API endpoints.
-const root = {
-    users: () => {
-        return users;
+const resolvers = {
+    Query: {
+        users: () => {
+            return users;
+        },
+        messages: () => {
+            return messages;
+        },
+        rolls: () => {
+            return rolls;
+        },
     },
-    messages: () => {
-        return messages;
+    Mutation: {
+        createUser: (parent, { name }) => {
+            const id = users.length;
+            const newUser = {
+                id: id,
+                name: name ? name : `User ${id}`,
+            }
+            users.push(newUser);
+
+            return newUser;
+        },
+        createMessage: (parent, {userId, text}) => {
+            const id = messages.length;
+            const newMessage = {
+                id: id,
+                user: users.find(user => user.id == userId), // FIXME figure out why strict type equality doesn't work here.
+                text: text,
+            };
+            messages.push(newMessage);
+
+            pubsub.publish('MESSAGE_CREATED', {
+                messageCreated: newMessage,
+              });
+
+            return newMessage;
+        },
+        createRoll: (parent, {userId, diceCount, diceFaces}) => {
+            const id = rolls.length;
+            const newRoll = {
+                id: id,
+                user: users.find(user => user.id == userId), // FIXME figure out why strict type equality doesn't work here.
+                diceCount: diceCount,
+                diceFaces: diceFaces,
+                result: rollDice(diceCount, diceFaces),
+            };
+            rolls.push(newRoll);
+
+            return newRoll;
+        },
     },
-    rolls: () => {
-        return rolls;
-    },
-    createUser: ({name}) => {
-        const id = users.length; // TODO update ID assignment if deletion functionality is added.
-        const newUser = {
-            id: id,
-            name: name ? name : `User ${id}`,
+    Subscription: {
+        messageCreated: {
+            subscribe: () => pubsub.asyncIterator(['MESSAGE_CREATED'])
         }
-        users.push(newUser);
-
-        return newUser;
     },
-    createMessage: ({userId, text}) => {
-        const id = messages.length; // TODO update ID assignment if deletion functionality is added.
-        const newMessage = {
-            id: id,
-            user: users.find(user => user.id == userId), // FIXME figure out why strict type equality doesn't work here.
-            text: text,
-        };
-        messages.push(newMessage);
-
-        return newMessage;
-    },
-    createRoll: ({userId, diceCount, diceFaces}) => {
-        const id = rolls.length; // TODO update ID assignment if deletion functionality is added.
-        const newRoll = {
-            id: id,
-            user: users.find(user => user.id == userId), // FIXME figure out why strict type equality doesn't work here.
-            diceCount: diceCount,
-            diceFaces: diceFaces,
-            result: rollDice(diceCount, diceFaces),
-        };
-        rolls.push(newRoll);
-
-        return newRoll;
-    }
 };
 
 // Start up the server.
-var app = express();
-app.use(cors());
-app.use(express.json());
-app.use('/graphql', graphqlHTTP({
-    schema: schema,
-    rootValue: root,
-    graphiql: true, // Enables the graphical UI for quick testing.
-}));
-app.listen(4000);
-console.log('Running a GraphQL API server at http://localhost:4000/graphql');
+const server = new ApolloServer({
+    typeDefs,
+    resolvers, 
+    subscriptions: {
+        path: '/subscriptions',
+    },
+});
+server.listen().then(({ url }) => {
+    console.log(`🚀 Server ready at ${url}`);
+});
+
+// var app = express();
+// app.use(cors());
+// app.use(express.json());
+// app.use('/graphql', graphqlHTTP({
+//     schema: schema,
+//     rootValue: root,
+//     graphiql: true, // Enables the graphical UI for quick testing.
+// }));
+// app.listen(4000);
+// console.log('Running a GraphQL API server at http://localhost:4000/graphql');

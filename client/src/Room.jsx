@@ -3,13 +3,16 @@ import {
   ApolloClient,
   ApolloProvider,
   HttpLink,
-  from,
+  split,
   InMemoryCache, 
   gql,
   useQuery,
   useMutation,
+  useSubscription,
 } from '@apollo/client';
 import { onError } from '@apollo/client/link/error';
+import { getMainDefinition } from '@apollo/client/utilities';
+import { WebSocketLink } from '@apollo/client/link/ws';
 
 // Build error-catching system.
 const errorLink = onError(({ graphQLErrors, networkError }) => {
@@ -25,15 +28,36 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
 });
 
 // Build HTTP link to server.
-const link = from([
-  errorLink,
-  new HttpLink({uri: 'http://localhost:4000/graphql'}),
-]);
+const httpLink = new HttpLink({
+  uri: 'http://localhost:4000/graphql'
+});
+
+// Build WebSocket link to server.
+const wsLink = new WebSocketLink({
+  uri: 'ws://localhost:4000/subscriptions',
+  options: {
+    reconnect: true
+  }
+});
+
+// Split link. This ensures we use the HTTP link for queries and mutations and the WebSocket link for subscriptions,
+// based on a bit of logic.
+const splitLink = split(
+  ({ query }) => {
+    const definition = getMainDefinition(query);
+    return (
+      definition.kind === 'OperationDefinition' &&
+      definition.operation === 'subscription'
+    );
+  },
+  wsLink,
+  httpLink,
+);
 
 const client = new ApolloClient({
+  link: splitLink,
   // uri: 'http://localhost:4000/graphql',
-  cache: new InMemoryCache(),
-  link: link,
+  cache: new InMemoryCache()
 });
 
 // Define React hooks for interacting with GraphQL API.
@@ -62,6 +86,19 @@ const GET_MESSAGES = gql`
 const CREATE_MESSAGE = gql`
   mutation createMessage($userId: ID!, $text: String!) {
     createMessage(userId: $userId, text: $text) {
+      id
+      user {
+        id
+        name
+      }
+      text
+    }
+  }
+`;
+
+const WATCH_MESSAGES = gql`
+  subscription watchMessages {
+    messageCreated {
       id
       user {
         id
@@ -106,23 +143,38 @@ const Users = () => {
 };
 
 const Messages = () => {
-  const { data } = useQuery(GET_MESSAGES, { pollInterval: 500 });
+  const { data } = useQuery(GET_MESSAGES);
 
   if (!data) {
     return null;
   }
 
   return (
-    <ul>
+    <>
       {data.messages.map(({id, user, text}) => { return (
-        <li key={id}>
-          <div>{user.name}</div>
-          <div>{text}</div>
+        <li key={id} className="message">
+          <div className="message-username">{user.name}</div>
+          <div className="message-text">{text}</div>
         </li>
       )})}
-    </ul>
+    </>
   );
 };
+
+const NewMessages = () => {
+  const { data } = useSubscription(WATCH_MESSAGES);
+
+  if (!data) {
+    return null;
+  }
+
+  return (
+    <li className="message">
+      <div className="message-username">{data.messageCreated.user.name}</div>
+      <div className="message-text">{data.messageCreated.text}</div>
+    </li>
+  );
+}
 
 const Rolls = () => {
   const { data } = useQuery(GET_ROLLS);
@@ -211,7 +263,10 @@ const Room = () => {
         </button>
 
       <h1>Messages</h1>
-      <Messages />
+      <ul>
+        <Messages />
+        <NewMessages />
+      </ul>
 
       <h1>Rolls</h1>
       <Rolls />
