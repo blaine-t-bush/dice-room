@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const { graphqlHTTP } = require('express-graphql');
 const { buildSchema } = require('graphql');
 
@@ -44,9 +45,9 @@ const schema = buildSchema(`
     }
 
     type Mutation {
-        createUser(name: String!): ID!
-        createMessage(userId: ID!, text: String!): ID!
-        createRoll(userId: ID!, diceCount: Int!, diceFaces: Int!): ID!
+        createUser(name: String): User!
+        createMessage(userId: ID!, text: String!): Message!
+        createRoll(userId: ID!, diceCount: Int!, diceFaces: Int!): Roll!
     }
 `);
 
@@ -63,39 +64,44 @@ const root = {
     },
     createUser: ({name}) => {
         const id = users.length; // TODO update ID assignment if deletion functionality is added.
-        users.push({
+        const newUser = {
             id: id,
-            name: name,
-        });
+            name: name ? name : `User ${id}`,
+        }
+        users.push(newUser);
 
-        return id;
+        return newUser;
     },
     createMessage: ({userId, text}) => {
         const id = messages.length; // TODO update ID assignment if deletion functionality is added.
-        messages.push({
+        const newMessage = {
             id: id,
             user: users.find(user => user.id == userId), // FIXME figure out why strict type equality doesn't work here.
             text: text,
-        });
+        };
+        messages.push(newMessage);
 
-        return id;
+        return newMessage;
     },
     createRoll: ({userId, diceCount, diceFaces}) => {
         const id = rolls.length; // TODO update ID assignment if deletion functionality is added.
-        rolls.push({
+        const newRoll = {
             id: id,
             user: users.find(user => user.id == userId), // FIXME figure out why strict type equality doesn't work here.
             diceCount: diceCount,
             diceFaces: diceFaces,
             result: rollDice(diceCount, diceFaces),
-        });
+        };
+        rolls.push(newRoll);
 
-        return id;
+        return newRoll;
     }
 };
 
 // Start up the server.
 var app = express();
+app.use(cors());
+app.use(express.json());
 app.use('/graphql', graphqlHTTP({
     schema: schema,
     rootValue: root,
