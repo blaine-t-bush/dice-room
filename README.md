@@ -1,12 +1,7 @@
-API Backend: Node.js
-API Communication: GraphQL
-Application Frontend: React.js
-
-React.js <--- GraphQL ---> Node.js
+`React.js <--- GraphQL ---> Node.js`
 
 ## Layout
-Looks like the average group text/chat app.
-User messages are displayed in timestamp order, so there aren't inconsistencies between users.
+Looks like your standard group text/message app. Messages and dice rolls are displayed in order of oldest to newest.
 
 ```
 --------------------------------------
