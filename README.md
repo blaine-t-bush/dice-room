@@ -8,6 +8,7 @@ React.js <--- GraphQL ---> Node.js
 Looks like the average group text/chat app.
 User messages are displayed in timestamp order, so there aren't inconsistencies between users.
 
+```
 --------------------------------------
 |     ~ Welcome to dice roller ~     |
 --------------------------------------
@@ -34,6 +35,7 @@ User messages are displayed in timestamp order, so there aren't inconsistencies 
 | | Name              | Update >>> | |
 | ---------------------------------- |
 --------------------------------------
+```
 
 # Behavior
 - Enter text in name box, and press return or click update => send API request to change name
