@@ -13,6 +13,8 @@ import { onError } from '@apollo/client/link/error';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { WebSocketLink } from '@apollo/client/link/ws';
 
+import './Room.css';
+
 // Build error-catching system.
 const errorLink = onError(({ graphQLErrors, networkError }) => {
   // TODO test graphqlErrors catching.
@@ -273,12 +275,12 @@ function Room() {
   }
 
   return (
-    <div>
+    <div id="message-container">
       <h1>Messages</h1>
       <MessageLoader />
 
       {state.hasJoined ? (
-        <div id="form-message">
+        <div id="form-message" className="form">
           <input
             type="text"
             name="text"
@@ -302,7 +304,7 @@ function Room() {
           </button>
         </div>
       ) : (
-        <div id="form-join">
+        <div id="form-join" className="form">
           <input
             type="text"
             name="username"

@@ -1,0 +1,22 @@
+#message-container {
+    background-color: lightblue;
+    box-sizing: border-box;
+    margin: auto;
+    max-height: 100vh;
+    max-width: 640px;
+    overflow-y: scroll;
+    padding: 1em;
+    width: 95%;
+}
+
+.form {
+    column-gap: 16px;
+    display: grid;
+    grid-template-columns: auto 80px;
+    grid-template-rows: auto;
+    width: 100%;
+}
+
+.form > button {
+    color: red;
+}
