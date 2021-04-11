@@ -202,13 +202,26 @@ function UserLoader() {
 }
 
 class Messages extends React.Component {
+  scrollToBottom = () => {
+    this.messagesEnd.scrollIntoView({ behavior: "smooth" });
+  }
+
+  scrollToBottomFast = () => {
+    this.messagesEnd.scrollIntoView({ behavior: "auto" });
+  }
+
   componentDidMount() {
     this.props.subscribeToNewMessages();
+    this.scrollToBottomFast();
+  }
+
+  componentDidUpdate() {
+    this.scrollToBottom();
   }
 
   render() {
     return (
-      <ul className="messages">
+      <ul id="messages" className="messages">
         {this.props.messages.map(({id, user, text, roll}) => { return (
           <li key={id} className={`message ${this.props.userId == user.id ? "self" : ""}`}>
             <div className="message-name">
@@ -231,6 +244,9 @@ class Messages extends React.Component {
             </div>
           </li>
         )})}
+        <div style={{ float:"left", clear: "both" }}
+             ref={(el) => { this.messagesEnd = el; }}>
+        </div>
       </ul>
     );
   }
@@ -310,7 +326,7 @@ function Room() {
         });
       }
     });
-  }, [state.user.id]);
+  }, [verifyUser, state.user.id]);
 
   // Function for handling sending of new messages.
   const onSendMessage = () => {
@@ -379,68 +395,72 @@ function Room() {
 
   return (
     <div id="outer-container" className="container">
+      <h1>Dice Bazaar</h1>
+      {/* TODO scroll down on new message event */}
       <MessageLoader userId={state.user.id} />
 
-      {/* TODO hide dice menu if still guest */}
-      <div id="dice-modal" className={isDiceMenuOpen ? "active" : null}>
-        <div id="dice-menu-icon" onClick={() => onClickDiceMenu()}></div>
-        <div id="dice-container" className="dice-container">
-          <button onClick={() => onRoll(1, 100)}>d100</button>
-          <button onClick={() => onRoll(1, 20)}>d20</button>
-          <button onClick={() => onRoll(1, 12)}>d12</button>
-          <button onClick={() => onRoll(1, 10)}>d10</button>
-          <button onClick={() => onRoll(1, 8)}>d8</button>
-          <button onClick={() => onRoll(1, 6)}>d6</button>
-          <button onClick={() => onRoll(1, 4)}>d4</button>
-        </div>
-      </div>
+      {state.hasJoined ? (
+        <div className="form-container has-dice">
+          <div id="dice-modal" className={isDiceMenuOpen ? "active" : null}>
+            <div id="dice-menu-icon" onClick={() => onClickDiceMenu()}>
+              🎲
+            </div>
+            <div id="dice-container" className="dice-container">
+              <button onClick={() => onRoll(1, 100)}>d100</button>
+              <button onClick={() => onRoll(1, 20)}>d20</button>
+              <button onClick={() => onRoll(1, 12)}>d12</button>
+              <button onClick={() => onRoll(1, 10)}>d10</button>
+              <button onClick={() => onRoll(1, 8)}>d8</button>
+              <button onClick={() => onRoll(1, 6)}>d6</button>
+              <button onClick={() => onRoll(1, 4)}>d4</button>
+            </div>
+            <div id="dice-container-triangle" ></div>
+          </div>
 
-      <div className="form-container"> 
-        {state.hasJoined ? (
-          <>
-            <input
-              type="text"
-              name="text"
-              id="text"
-              value={state.text}
-              placeholder="Enter a message..."
-              onChange={(e) => stateSet({
-                  ...state,
-                  text: e.target.value,
-                })
-              }
-              onKeyDown={(e) => {
-                if (e.keyCode === 13) {
-                  onSendMessage();
-                }
-              }}
-            />
-
-            <button onClick={() => onSendMessage()}>Send</button>
-          </>
-        ) : (
-          <>
-            <input
-              type="text"
-              name="username"
-              id="username"
-              value={state.nameInput}
-              placeholder="Choose a name..."
-              onChange={(e) => stateSet({
+          <input
+            type="text"
+            name="text"
+            id="text"
+            autoComplete="off"
+            value={state.text}
+            placeholder="Enter a message..."
+            onChange={(e) => stateSet({
                 ...state,
-                nameInput: e.target.value,
-              })}
-              onKeyDown={(e) => {
-                if (e.keyCode === 13) {
-                  onJoin();
-                }
-              }}
-            />
+                text: e.target.value,
+              })
+            }
+            onKeyDown={(e) => {
+              if (e.keyCode === 13) {
+                onSendMessage();
+              }
+            }}
+          />
 
-            <button onClick={() => onJoin()}>Join</button>
-          </>
-        )}
-      </div>
+          <button onClick={() => onSendMessage()}>Send</button>
+        </div>
+      ) : (
+        <div className="form-container"> 
+          <input
+            type="text"
+            name="username"
+            id="username"
+            autoComplete="off"
+            value={state.nameInput}
+            placeholder="Choose a name..."
+            onChange={(e) => stateSet({
+              ...state,
+              nameInput: e.target.value,
+            })}
+            onKeyDown={(e) => {
+              if (e.keyCode === 13) {
+                onJoin();
+              }
+            }}
+          />
+
+          <button onClick={() => onJoin()}>Join</button>
+        </div>
+      )}
     </div>
   )
 };
