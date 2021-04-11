@@ -1,3 +1,8 @@
+html {
+    --scrollbarBG: rgba(0, 0, 0, 0);
+    --thumbBG: rgba(100, 100, 100, 1);
+}
+
 div.container {
     background-color: rgb(163, 163, 214);
     height: 100%;
@@ -16,9 +21,29 @@ div.container {
 ul.messages {
     margin: 0;
     padding: 0;
+    padding-right: 5px;
     overflow: hidden;
     overflow-y: scroll;
     list-style-type: none;
+}
+
+ul.messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+ul.messages {
+    scrollbar-width: thin;
+    scrollbar-color: var(--thumbBG) var(--scrollbarBG);
+}
+
+ul.messages::-webkit-scrollbar-track {
+    background: var(--scrollbarBG);
+}
+
+ul.messages::-webkit-scrollbar-thumb {
+    background-color: var(--thumbBG) ;
+    border-radius: 6px;
+    border: 3px solid var(--scrollbarBG);
 }
 
 ul.messages > li.message {
@@ -62,15 +87,31 @@ div.form-container {
     column-gap: 0.5rem;
 }
 
-div.dice-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
-    grid-template-rows: auto;
-    column-gap: 0.5rem;
-    justify-items: center;
-    width: 100%;
+#dice-modal > #dice-menu-icon {
+    background-color: purple;
+    width: 30px;
+    height: 30px;
+    position: relative;
 }
 
-div.dice-container > button {
+#dice-modal > #dice-container {
+    display: none;
+}
+
+#dice-modal.active > #dice-container {
+    display: grid;
+    grid-template-rows: 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+    grid-template-columns: auto;
+    row-gap: 0.5rem;
+    width: fit-content;
+
+    position: absolute;
+    bottom: calc(2*30px + 2*1rem);
+
+    background-color: green;
+    padding: 0.5rem;
+}
+
+#dice-container > button {
     width: 50px;
 }

@@ -207,8 +207,6 @@ class Messages extends React.Component {
   }
 
   render() {
-    console.log(this.props.messages);
-
     return (
       <ul className="messages">
         {this.props.messages.map(({id, user, text, roll}) => { return (
@@ -332,6 +330,12 @@ function Room() {
     });
   }
 
+  // Function for opening and closing the dice tray.
+  const [isDiceMenuOpen, setDiceMenuOpen] = React.useState(false);
+  const onClickDiceMenu = () => {
+    setDiceMenuOpen(!isDiceMenuOpen)
+  }
+
   // Function for handling rolling of dice.
   const onRoll = (diceCount, diceFaces) => {
     try {
@@ -374,17 +378,21 @@ function Room() {
   }
 
   return (
-    <div className="container">
+    <div id="outer-container" className="container">
       <MessageLoader userId={state.user.id} />
 
-      <div className="dice-container">
-        <button onClick={() => onRoll(1, 100)}>d100</button>
-        <button onClick={() => onRoll(1, 20)}>d20</button>
-        <button onClick={() => onRoll(1, 12)}>d12</button>
-        <button onClick={() => onRoll(1, 10)}>d10</button>
-        <button onClick={() => onRoll(1, 8)}>d8</button>
-        <button onClick={() => onRoll(1, 6)}>d6</button>
-        <button onClick={() => onRoll(1, 4)}>d4</button>
+      {/* TODO hide dice menu if still guest */}
+      <div id="dice-modal" className={isDiceMenuOpen ? "active" : null}>
+        <div id="dice-menu-icon" onClick={() => onClickDiceMenu()}></div>
+        <div id="dice-container" className="dice-container">
+          <button onClick={() => onRoll(1, 100)}>d100</button>
+          <button onClick={() => onRoll(1, 20)}>d20</button>
+          <button onClick={() => onRoll(1, 12)}>d12</button>
+          <button onClick={() => onRoll(1, 10)}>d10</button>
+          <button onClick={() => onRoll(1, 8)}>d8</button>
+          <button onClick={() => onRoll(1, 6)}>d6</button>
+          <button onClick={() => onRoll(1, 4)}>d4</button>
+        </div>
       </div>
 
       <div className="form-container"> 
