@@ -1,22 +1,76 @@
-#message-container {
-    background-color: lightblue;
-    box-sizing: border-box;
+div.container {
+    background-color: rgb(163, 163, 214);
+    height: 100%;
+    width: 100%;
+    max-width: 720px;
+
     margin: auto;
-    max-height: 100vh;
-    max-width: 640px;
-    overflow-y: scroll;
-    padding: 1em;
-    width: 95%;
+    padding: 0.5rem;
+
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 30px 30px;
+    row-gap: 1rem;
 }
 
-.form {
-    column-gap: 16px;
+ul.messages {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    overflow-y: scroll;
+    list-style-type: none;
+}
+
+ul.messages > li.message {
+    width: fit-content;
+    max-width: 100%;
+    overflow-wrap: break-word;
+}
+
+div.message-name {
+    font-size: small;
+    padding-left: 0.3em;
+}
+
+div.message-text {
+    background-color: rgb(94, 94, 155);
+    border-radius: 0.4em;
+    color: rgb(255, 255, 255);
+    padding: 0.2em 0.6em 0.2em 0.6em;
+}
+
+li.message.self {
+    margin-left: auto;
+}
+
+li.message.self > div.message-text {
+    background-color: rgb(35, 35, 119) !important;
+    color: white !important;
+}
+
+ul.messages > li.message:not(:first-child) {
+    margin-top: 0.5rem;
+}
+
+div.form-container {
+    height: 100%;
+    width: 100%;
+
     display: grid;
-    grid-template-columns: auto 80px;
+    grid-template-columns: auto 50px;
+    grid-template-rows: 1fr;
+    column-gap: 0.5rem;
+}
+
+div.dice-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
     grid-template-rows: auto;
+    column-gap: 0.5rem;
+    justify-items: center;
     width: 100%;
 }
 
-.form > button {
-    color: red;
+div.dice-container > button {
+    width: 50px;
 }

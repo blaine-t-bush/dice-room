@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { 
   ApolloClient,
   ApolloProvider,
@@ -71,6 +71,12 @@ const GET_USERS = gql`
 }
 `;
 
+const VERIFY_USER = gql`
+  mutation verifyUser($id: ID!, $name: String!) {
+    verifyUser(id: $id, name: $name)
+  }
+`;
+
 const CREATE_USER = gql`
 mutation createUser($name: String!) {
   createUser(name: $name) {
@@ -98,6 +104,13 @@ const GET_MESSAGES = gql`
         name
       }
       text
+      roll {
+        id
+        createdAt
+        diceCount
+        diceFaces
+        result
+      }
     }
   }
 `;
@@ -111,6 +124,23 @@ const CREATE_MESSAGE = gql`
         name
       }
       text
+    }
+  }
+`;
+
+const CREATE_ROLL = gql`
+  mutation createRoll($userId: ID!, $diceCount: Int!, $diceFaces: Int!) {
+    createRoll(userId: $userId, diceCount: $diceCount, diceFaces: $diceFaces) {
+      id
+      createdAt
+      user {
+        id
+        createdAt
+        name
+      }
+      diceCount
+      diceFaces
+      result
     }
   }
 `;
@@ -135,9 +165,9 @@ class Users extends React.Component {
 
   render() {
     return (
-      <ul>
+      <ul className="users">
         {this.props.users.map(({id, name}) => { return (
-          <li key={id}>
+          <li key={id} className="user">
             {name}
           </li>
         )})}
@@ -177,12 +207,30 @@ class Messages extends React.Component {
   }
 
   render() {
+    console.log(this.props.messages);
+
     return (
-      <ul>
-        {this.props.messages.map(({id, user, text}) => { return (
-          <li key={id} className="message">
-            <div className="message-username">{user.name}</div>
-            <div className="message-text">{text}</div>
+      <ul className="messages">
+        {this.props.messages.map(({id, user, text, roll}) => { return (
+          <li key={id} className={`message ${this.props.userId == user.id ? "self" : ""}`}>
+            <div className="message-name">
+              {this.props.userId != user.id ? (
+                <>{user.name}</>) : (
+                <></>
+              )}
+            </div>
+
+            <div className="message-text">
+              {roll ? (
+                <span>
+                  <em>{roll.diceCount}d{roll.diceFaces}</em> &#8594; <strong>{roll.result}</strong>
+                </span>
+              ) : (
+                <span>
+                  {text}
+                </span>
+              )}
+            </div>
           </li>
         )})}
       </ul>
@@ -190,7 +238,7 @@ class Messages extends React.Component {
   }
 }
 
-function MessageLoader() {
+function MessageLoader(props) {
   const { loading, error, data, subscribeToMore } = useQuery(GET_MESSAGES);
 
   if (loading) return 'Loading...';
@@ -199,6 +247,7 @@ function MessageLoader() {
   return (
     <Messages
       messages={data.messages}
+      userId={props.userId}
       subscribeToNewMessages={() =>
         subscribeToMore({
           document: MESSAGE_CREATED,
@@ -216,17 +265,54 @@ function MessageLoader() {
 }
 
 function Room() {
+  const [verifyUser] = useMutation(VERIFY_USER);
   const [createUser] = useMutation(CREATE_USER);
   const [createMessage] = useMutation(CREATE_MESSAGE);
+  const [createRoll] = useMutation(CREATE_ROLL);
   const [state, stateSet] = React.useState({
     hasJoined: false,
-    nameInput: "",
+    nameInput: '',
     user: {
       id: 0,
-      name: "Guest",
+      name: 'Guest',
     },
     text: '',
   });
+
+  useEffect(() => {
+    // Check local storage for user info.
+    var hasJoined = localStorage.getItem('hasJoined') === 'true';
+    var userId = localStorage.getItem('userId') ? parseInt(localStorage.getItem('userId')) : 0;
+    var userName = localStorage.getItem('userName') ? localStorage.getItem('userName') : 'Guest';
+    
+    // Verify that user in local storage exists on server.
+    verifyUser({
+      variables: { id: userId, name: userName },
+    }).then(result => {
+      // If it does, continue as that user. If not, need to join.
+      if (result.data.verifyUser) {
+        stateSet({
+          hasJoined: hasJoined,
+          nameInput: '',
+          user: {
+            id: userId,
+            name: userName,
+          },
+          text: '',
+        });
+      } else {
+        stateSet({
+          hasJoined: false,
+          nameInput: '',
+          user: {
+            id: 0,
+            name: 'Guest',
+          },
+          text: '',
+        });
+      }
+    });
+  }, [state.user.id]);
 
   // Function for handling sending of new messages.
   const onSendMessage = () => {
@@ -244,6 +330,17 @@ function Room() {
       ...state,
       text: '',
     });
+  }
+
+  // Function for handling rolling of dice.
+  const onRoll = (diceCount, diceFaces) => {
+    try {
+      createRoll({
+        variables: { userId: state.user.id, diceCount: diceCount, diceFaces: diceFaces },
+      });
+    } catch (e) {
+      console.log(e);
+    }
   }
 
   // Function for handling creating user model.
@@ -265,7 +362,9 @@ function Room() {
               hasJoined: true,
             });
 
-            // Hide the "join" UI element.
+            localStorage.setItem('hasJoined', true);
+            localStorage.setItem('userId', result.data.createUser.id);
+            localStorage.setItem('userName', result.data.createUser.name);
           });
         } catch (e) {
           console.log(e);
@@ -275,58 +374,65 @@ function Room() {
   }
 
   return (
-    <div id="message-container">
-      <h1>Messages</h1>
-      <MessageLoader />
+    <div className="container">
+      <MessageLoader userId={state.user.id} />
 
-      {state.hasJoined ? (
-        <div id="form-message" className="form">
-          <input
-            type="text"
-            name="text"
-            id="text"
-            value={state.text}
-            placeholder="Enter a message..."
-            onChange={(e) => stateSet({
+      <div className="dice-container">
+        <button onClick={() => onRoll(1, 100)}>d100</button>
+        <button onClick={() => onRoll(1, 20)}>d20</button>
+        <button onClick={() => onRoll(1, 12)}>d12</button>
+        <button onClick={() => onRoll(1, 10)}>d10</button>
+        <button onClick={() => onRoll(1, 8)}>d8</button>
+        <button onClick={() => onRoll(1, 6)}>d6</button>
+        <button onClick={() => onRoll(1, 4)}>d4</button>
+      </div>
+
+      <div className="form-container"> 
+        {state.hasJoined ? (
+          <>
+            <input
+              type="text"
+              name="text"
+              id="text"
+              value={state.text}
+              placeholder="Enter a message..."
+              onChange={(e) => stateSet({
+                  ...state,
+                  text: e.target.value,
+                })
+              }
+              onKeyDown={(e) => {
+                if (e.keyCode === 13) {
+                  onSendMessage();
+                }
+              }}
+            />
+
+            <button onClick={() => onSendMessage()}>Send</button>
+          </>
+        ) : (
+          <>
+            <input
+              type="text"
+              name="username"
+              id="username"
+              value={state.nameInput}
+              placeholder="Choose a name..."
+              onChange={(e) => stateSet({
                 ...state,
-                text: e.target.value,
-              })
-            }
-            onKeyDown={(e) => {
-              if (e.keyCode === 13) {
-                onSendMessage();
-              }
-            }} />
+                nameInput: e.target.value,
+              })}
+              onKeyDown={(e) => {
+                if (e.keyCode === 13) {
+                  onJoin();
+                }
+              }}
+            />
 
-          <button
-            onClick={() => onSendMessage()}>
-            Send
-          </button>
-        </div>
-      ) : (
-        <div id="form-join" className="form">
-          <input
-            type="text"
-            name="username"
-            id="username"
-            value={state.nameInput}
-            placeholder="Choose a name..."
-            onChange={(e) => stateSet({
-              ...state,
-              nameInput: e.target.value,
-            })}
-            onKeyDown={(e) => {
-              if (e.keyCode === 13) {
-                onJoin();
-              }
-            }} />
-
-          <button
-            onClick={() => onJoin()}>
-            Join
-          </button>
-        </div>
-      )}
+            <button onClick={() => onJoin()}>Join</button>
+          </>
+        )}
+      </div>
     </div>
   )
 };
