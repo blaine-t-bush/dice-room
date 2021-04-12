@@ -16,12 +16,12 @@ import './Room.css';
 
 // Build HTTP link to server.
 const httpLink = new HttpLink({
-  uri: 'https://parvifolium.net:4000/dice-room-graphql'
+  uri: 'http://localhost:4000/graphql'
 });
 
 // Build WebSocket link to server.
 const wsLink = new WebSocketLink({
-  uri: 'wss://parvifolium.net:4000/dice-room-graphql/subscriptions',
+  uri: 'ws://localhost:4000/subscriptions',
   options: {
     reconnect: true
   }
