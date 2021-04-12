@@ -113,19 +113,6 @@ const CREATE_ROLL = gql`
   }
 `;
 
-const MESSAGE_CREATED = gql`
-  subscription messageCreated {
-    messageCreated {
-      id
-      user {
-        id
-        name
-      }
-      text
-    }
-  }
-`;
-
 class Messages extends React.Component {
   scrollToBottom = () => {
     this.messagesEnd.scrollIntoView({ behavior: "smooth" });
@@ -136,7 +123,6 @@ class Messages extends React.Component {
   }
 
   componentDidMount() {
-    this.props.subscribeToNewMessages();
     this.scrollToBottomFast();
   }
 
@@ -178,7 +164,7 @@ class Messages extends React.Component {
 }
 
 function MessageLoader(props) {
-  const { loading, error, data, subscribeToMore } = useQuery(GET_MESSAGES);
+  const { loading, error, data } = useQuery(GET_MESSAGES, {pollInterval: 500});
 
   if (loading) return 'Loading...';
   if (error) return `Error! ${error.message}`;
@@ -187,18 +173,6 @@ function MessageLoader(props) {
     <Messages
       messages={data.messages}
       userId={props.userId}
-      subscribeToNewMessages={() =>
-        subscribeToMore({
-          document: MESSAGE_CREATED,
-          updateQuery: (prev, { subscriptionData }) => {
-            if (!subscriptionData.data) return prev;
-            const newMessage = subscriptionData.data.messageCreated;
-            return Object.assign({}, prev, {
-              messages: [...prev.messages, newMessage]
-            })
-          }
-        })
-      }
     />
   );
 }
