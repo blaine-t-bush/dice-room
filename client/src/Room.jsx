@@ -9,24 +9,10 @@ import {
   useQuery,
   useMutation,
 } from '@apollo/client';
-import { onError } from '@apollo/client/link/error';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { WebSocketLink } from '@apollo/client/link/ws';
 
 import './Room.css';
-
-// Build error-catching system.
-const errorLink = onError(({ graphQLErrors, networkError }) => {
-  // TODO test graphqlErrors catching.
-  if (graphQLErrors) {
-    graphQLErrors.map(({ message }) => console.log(message));
-  }
-
-  // TODO test networkErrors catching.
-  if (networkError) {
-    networkError.map(({ message }) => console.log(message));
-  }
-});
 
 // Build HTTP link to server.
 const httpLink = new HttpLink({
@@ -62,15 +48,6 @@ const client = new ApolloClient({
 });
 
 // Define React hooks for interacting with GraphQL API.
-const GET_USERS = gql`
-  query getUsers {
-    users {
-      id
-      name
-    }
-}
-`;
-
 const VERIFY_USER = gql`
   mutation verifyUser($id: ID!, $name: String!) {
     verifyUser(id: $id, name: $name)
@@ -84,15 +61,6 @@ mutation createUser($name: String!) {
     name
   }
 }
-`;
-
-const USER_CREATED = gql`
-  subscription userCreated {
-    userCreated {
-      id
-      name
-    }
-  }
 `;
 
 const GET_MESSAGES = gql`
@@ -158,49 +126,6 @@ const MESSAGE_CREATED = gql`
   }
 `;
 
-class Users extends React.Component {
-  componentDidMount() {
-    this.props.subscribeToNewUsers();
-  }
-
-  render() {
-    return (
-      <ul className="users">
-        {this.props.users.map(({id, name}) => { return (
-          <li key={id} className="user">
-            {name}
-          </li>
-        )})}
-      </ul>
-    );
-  }
-}
-
-function UserLoader() {
-  const { loading, error, data, subscribeToMore } = useQuery(GET_USERS);
-
-  if (loading) return 'Loading...';
-  if (error) return `Error! ${error.message}`;
-
-  return (
-    <Users
-      users={data.users}
-      subscribeToNewUsers={() =>
-        subscribeToMore({
-          document: USER_CREATED,
-          updateQuery: (prev, { subscriptionData }) => {
-            if (!subscriptionData.data) return prev;
-            const newUser = subscriptionData.data.userCreated;
-            return Object.assign({}, prev, {
-              users: [...prev.users, newUser]
-            })
-          }
-        })
-      }
-    />
-  );
-}
-
 class Messages extends React.Component {
   scrollToBottom = () => {
     this.messagesEnd.scrollIntoView({ behavior: "smooth" });
@@ -223,9 +148,9 @@ class Messages extends React.Component {
     return (
       <ul id="messages" className="messages">
         {this.props.messages.map(({id, user, text, roll}) => { return (
-          <li key={id} className={`message ${this.props.userId == user.id ? "self" : ""}`}>
+          <li key={id} className={`message ${parseInt(this.props.userId) === parseInt(user.id) ? "self" : ""}`}>
             <div className="message-name">
-              {this.props.userId != user.id ? (
+              {parseInt(this.props.userId) !== parseInt(user.id) ? (
                 <>{user.name}</>) : (
                 <></>
               )}
@@ -396,7 +321,6 @@ function Room() {
   return (
     <div id="outer-container" className="container">
       <h1>Dice Bazaar</h1>
-      {/* TODO scroll down on new message event */}
       <MessageLoader userId={state.user.id} />
 
       {state.hasJoined ? (
@@ -421,6 +345,7 @@ function Room() {
             type="text"
             name="text"
             id="text"
+            autoFocus
             autoComplete="off"
             value={state.text}
             placeholder="Enter a message..."
@@ -444,6 +369,7 @@ function Room() {
             type="text"
             name="username"
             id="username"
+            autoFocus
             autoComplete="off"
             value={state.nameInput}
             placeholder="Choose a name..."
@@ -465,8 +391,10 @@ function Room() {
   )
 };
 
-export default () => (
+const RoomWithProvider = () => (
   <ApolloProvider client={client}>
     <Room />
   </ApolloProvider>
 );
+
+export default RoomWithProvider;
