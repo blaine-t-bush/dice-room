@@ -10,40 +10,10 @@ import {
   useMutation,
 } from '@apollo/client';
 import { getMainDefinition } from '@apollo/client/utilities';
-import { WebSocketLink } from '@apollo/client/link/ws';
-
 import './Room.css';
 
-// Build HTTP link to server.
-const httpLink = new HttpLink({
-  uri: 'http://localhost:4000/graphql'
-});
-
-// Build WebSocket link to server.
-const wsLink = new WebSocketLink({
-  uri: 'ws://localhost:4000/subscriptions',
-  options: {
-    reconnect: true
-  }
-});
-
-// Split link. This ensures we use the HTTP link for queries and mutations and the WebSocket link for subscriptions,
-// based on a bit of logic.
-const splitLink = split(
-  ({ query }) => {
-    const definition = getMainDefinition(query);
-    return (
-      definition.kind === 'OperationDefinition' &&
-      definition.operation === 'subscription'
-    );
-  },
-  wsLink,
-  httpLink,
-);
-
 const client = new ApolloClient({
-  link: splitLink,
-  // uri: 'http://localhost:4000/graphql',
+  uri: 'https://parvifolium.net/dice-room-server',
   cache: new InMemoryCache()
 });
 
